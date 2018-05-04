@@ -29,7 +29,7 @@ border-collapse: collapse;
 <table>
 <tr>
 <td align="left">Doc. no.</td>
-<td align="left">DXXXXr0</td>
+<td align="left">D1056r0</td>
 </tr>
 <tr>
 <td align="left">Revises</td>
@@ -56,12 +56,84 @@ border-collapse: collapse;
 </tr>
 <tr>
 <td align="left">Reply to:</td>
-<td align="left">Lewis Baker &lt;<a href=mailto:LewisBaker@gmail.com">LewisBaker@gmail.com</a>&gt;, Gor Nishanov &lt;<a href="mailto:gorn@microsoft.com">gorn@microsoft.com</a>&gt;</td>
+<td align="left">Lewis Baker &lt;<a href="mailto:LewisBaker@gmail.com">LewisBaker@gmail.com</a>&gt;, Gor Nishanov &lt;<a href="mailto:gorn@microsoft.com">gorn@microsoft.com</a>&gt;</td>
 </tr>
 </table>
 <h1>Add coroutine task type</h1>
 
 <h2>Wording</h2>
+Add the following sublcause to xxx
+<blockquote>
+<h3>XX.YY.1 Class template <code>task</code> [task]</h3>
+<ol>
+  <li>
+    The class template <code>task</code> defines a type for a 
+    <em>coroutine task object</em> that can be associated with a
+    coroutine which return type is <code>task&lt;<em>T</em>&gt;</code>
+    for some type <em>T</em>. In this subclause, we will refer to such a coroutine as 
+    <em>task coroutine</em> and to type <em>T</em> as <em>eventual type</em>
+    of a coroutine.
+  </li>
+  <br/>
+  <li>
+    The implementation shall define class template <code>task</code> and provide
+    specializations of <code>coroutine_traits</code> as required to implement
+    the following behavior:
+    <p>
+    <ol type="I">
+      <li>
+        A call to a task coroutine <em>f</em>
+        shall return a task object <em>t</em> associated with 
+        that coroutine. The called coroutine must be suspended at initial suspend point. 
+        Such task object is considered to be in the <em>armed</em> state.        
+      </li>
+      <br>
+      <li>
+        Awaiting on a task object in the <em>armed</em> state as 
+        if by <code>co_await<em>t</em></code> (8.3.8) shall register the
+        awaiting coroutine <em>a</em> with task object <em>t</em> 
+        and resume the coroutine <em>f</em>. At this point task object <em>t</em>
+        is considered to be in a <em>launched</em> state.
+      </li>
+      <br>
+      <li>
+        If coroutine <em>f</em> completes due to execution of
+        a <em>coroutine return statement</em> (9.6.3) or an unhandled
+        exception leaving the user-authored body of the coroutine,
+        awaiting coroutine <em>a</em> is resumed and a call <code>await_resume</code>
+        will evaluate to the operand of <code>co_return</code> 
+        statement in coroutine <em>f</em>, or an exception, respectively. 
+      </li>
+      <br>
+      <li>
+        If in the definition of the coroutine <em>g</em>, the first parameter has type
+        <code>allocator_arg_t</code>, then the coroutine must have at least two arguments
+        and the type of the second parameter shall satisfy the <code>Allocator</code> 
+        requirements (Table 31) and if dynamic allocation required to store 
+        the coroutine state (11.4.4), implementation should use provided allocator to
+        allocate and deallocate the coroutine state.
+      </li>
+    </ol>
+    </p>
+  </li>
+</ol>
+<h4>XX.YY.2 Class template <code>task</code> synopsis [task.syn]</h4>
+<!-- blockquote -->
+<pre>
+  template &lt;typename T&gt;
+  class task {
+  public:
+    task(task&amp;&amp; __other) noexcept;
+    ~task();
+    auto operator co_await(); <i>// exposition only</i>
+  private:
+    coroutine_handle&lt;<em>unspecified</em>&gt; h; <i>// exposition only</i>
+  };      
+</pre>
+<!-- /blockquote-->
+</blockquote>
+<h5>XX.YY.2.1 constructor</h5>
+<h5>XX.YY.2.2 destructor</h5>
 
 </body>
 </html>
