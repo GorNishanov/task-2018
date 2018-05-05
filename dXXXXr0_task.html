@@ -62,47 +62,151 @@ border-collapse: collapse;
 <h1>Add coroutine task type</h1>
 
 <h2>Wording</h2>
-Add the following sublcause to xxx
+<h3>21.11 Coroutine support library [support.coroutine] </h3>
+Add the following concept definitions to synopsis of header &lt;experimental/coroutine&gt;
+
 <blockquote>
-<h3>XX.YY.1 Class template <code>task</code> [task]</h3>
+<pre>
+  <em>// 21.11.6 Awaitable concepts</em>
+  template &lt;typename A&gt;
+  bool concept SimpleAwaitable = <em>see below</em>;
+  
+  template &lt;typename A&gt;
+  bool concept Awaitable = <em>see below</em>;
+</pre>
+</blockquote>
+
+<blockquote>
+<pre>
+</pre>  
+</blockquote>
+
+<h3>21.11.6 <code>Awaitable</code> concepts [support.awaitable.simple] </h3>
+
 <ol>
-  <li>
+<li>
+The <code>Awaitable</code> and <code>SimpleAwaitable</code> concepts specify 
+the requirements on a type that is usable in an <em>await-expression</em> (8.3.8).
+    
+<blockquote>
+<pre>
+template &lt;typename T&gt;
+bool concept __HasMemberOperatorCoawait = <em>// exposition only </em>
+  requires(T a) { requires SimpleAwaitable<decltype(a.operator co_await())>; };          
+
+template &lt;typename T&gt;
+bool concept __HasNonMemberOperatorCoawait = <em>// exposition only </em>
+  requires(T a) { requires SimpleAwaitable<decltype(operator co_await(a))>; };          
+
+template &lt;typename A&gt;
+bool concept SimpleAwaitable = requires(A a, coroutine_handle&lt;&gt; h) {
+  { a.await_ready() } -&gt; bool;
+  a.await_resume();
+  a.await_suspend(h);
+};          
+      
+template &lt;typename A&gt;
+bool concept Awaitable = __HasMemberOperatorCoawait&lt;A&gt;
+  || __HasNonMemberOperatorCoawait&lt;A&gt; || SimpleAwaitable&lt;A&gt;;
+</pre>  
+</blockquote>
+</li>
+<li>
+  If the type of an expression <em>E</em> satisfies the <code>Awaitable</code>
+  concept then the term <em>simple awaitable of E</em> refers to an object
+  satisfying <code>SimpleAwaitable</code> concept that is either the result 
+  of <em>E</em> or the result of an application of <code>operator co_await</code>
+  to the result of <em>E</em>.
+</li>
+</li>
+</ol>
+
+<h3>XX.1 Coroutines tasks [coroutine.task]</h3>
+<h4>XX.1.1 Overview [coroutine.task.overview]</h4>
+<ol><li>
+  This subclause describes components that a C++ program can use to create
+  coroutines representing asynchronous computations. 
+</li></ol>
+<h4>XX.1.2 Header <code>task</code> synopsis [coroutine.task.syn]</h4>
+<blockquote>
+<pre>
+namespace std::experimental {
+inline namespace coroutines_v1 {
+
+template&lt;typename T = void&gt; class task;
+template&lt;typename T&gt; class task&lt;T&amp;&gt;;
+template&lt;&gt; class task&lt;void&gt;;
+} <em>// namespace coroutines_v1</em>
+} <em>// namespace std::experimental</em>
+</pre>
+</blockquote>
+<ol><li>
+  what now?
+</li></ol>
+<h3>XX.YY.1 Class template <code>task</code> [coroutine.task.task]</h3>
+<ol>
+  <pre>
+  template &lt;typename T&gt;
+  class [[nodiscard]] task {
+  public:
+    task(task&amp;&amp; __other) noexcept;
+    ~task();
+    auto operator co_await(); <i>// exposition only</i>
+  private:
+    coroutine_handle&lt;<em>unspecified</em>&gt; h; <i>// exposition only</i>
+  };      
+</pre>
+    <li>
     The class template <code>task</code> defines a type for a 
     <em>coroutine task object</em> that can be associated with a
     coroutine which return type is <code>task&lt;<em>T</em>&gt;</code>
     for some type <em>T</em>. In this subclause, we will refer to such a coroutine as 
     <em>task coroutine</em> and to type <em>T</em> as <em>eventual type</em>
-    of a coroutine.
-  </li>
-  <br/>
-  <li>
-    The implementation shall define class template <code>task</code> and provide
-    specializations of <code>coroutine_traits</code> as required to implement
-    the following behavior:
+    of a coroutine.  The implementation shall define class template <code>task</code> and provide
+    and two specializations, task&lt;&amp;T&gt; and task&lt;void;&gt;.
+    </li>
+<pre> task(task&amp;&amp; __other) noexcept; </pre>
+    <li>
+      <em>Effects:</em> Move constructs a <code>task</code> object that refers
+      to the coroutine that was originally referred to by <code>rhs</code> (if any).
+    </li>
+    <li>
+      <em>Postcondition:</em> <code>rhs</code> is empty.
+    </li>
+          
+    <li>
+    The implementation shall provide specializations of <code>coroutine_traits</code>
+    as required to implement the following behavior:
     <p>
     <ol type="I">
       <li>
         A call to a task coroutine <em>f</em>
         shall return a task object <em>t</em> associated with 
-        that coroutine. The called coroutine must be suspended at initial suspend point. 
+        that coroutine. The called coroutine must be suspended 
+        at the initial suspend point (11.4.4).
         Such task object is considered to be in the <em>armed</em> state.        
       </li>
       <br>
       <li>
-        Awaiting on a task object in the <em>armed</em> state as 
+        A type of a task object shall satisfy the <code>Awaitable</code> concept and
+        awaiting on a task object in the <em>armed</em> state as 
         if by <code>co_await<em>t</em></code> (8.3.8) shall register the
         awaiting coroutine <em>a</em> with task object <em>t</em> 
-        and resume the coroutine <em>f</em>. At this point task object <em>t</em>
-        is considered to be in a <em>launched</em> state.
+        and resume the coroutine <em>f</em>.
+        At this point task object <em>t</em>
+        is considered to be in a <em>launched</em> state. Awaiting on a task object
+        that is not in the <em>armed</em> state has undefined behavior.
       </li>
       <br>
-      <li>
+      <li>        
+        Let <em>sa</em> be a simple awaitable of <em>t</em> (21.11.6).
         If coroutine <em>f</em> completes due to execution of
         a <em>coroutine return statement</em> (9.6.3) or an unhandled
         exception leaving the user-authored body of the coroutine,
-        awaiting coroutine <em>a</em> is resumed and a call <code>await_resume</code>
-        will evaluate to the operand of <code>co_return</code> 
-        statement in coroutine <em>f</em>, or an exception, respectively. 
+        awaiting coroutine <em>a</em> is resumed and an expression
+        <code><em>sa</em>.await_resume()</code>
+        shall evaluate to the operand of <code>co_return</code> 
+        statement in coroutine <em>f</em>, or shall throw the exception, respectively. 
       </li>
       <br>
       <li>
@@ -113,27 +217,38 @@ Add the following sublcause to xxx
         the coroutine state (11.4.4), implementation should use provided allocator to
         allocate and deallocate the coroutine state.
       </li>
+      <br>
+      <li>
+        If <em>yield-expression</em> (8.20) occurs in the suspension context of
+        the task coroutine, the program is ill-formed.
+      </li>
     </ol>
     </p>
-  </li>
-</ol>
-<h4>XX.YY.2 Class template <code>task</code> synopsis [task.syn]</h4>
-<!-- blockquote -->
+  </ol>
+<h5>XX.YY.1.1 constructor</h5>
 <pre>
-  template &lt;typename T&gt;
-  class task {
-  public:
-    task(task&amp;&amp; __other) noexcept;
-    ~task();
-    auto operator co_await(); <i>// exposition only</i>
-  private:
-    coroutine_handle&lt;<em>unspecified</em>&gt; h; <i>// exposition only</i>
-  };      
+  task(task&amp;&amp; __other) noexcept;
 </pre>
-<!-- /blockquote-->
-</blockquote>
-<h5>XX.YY.2.1 constructor</h5>
-<h5>XX.YY.2.2 destructor</h5>
-
+  <li>
+    <em>Effects:</em> Move constructs a <code>task</code> object that refers
+    to the coroutine that was originally referred to by <code>rhs</code> (if any).
+  </li>
+  <li>
+    <em>Postcondition:</em> <code>rhs</code> is empty.
+  </li>
+<h5>XX.YY.1.2 destructor</h5>
+<pre>
+  ~task(task&amp;&amp; __other) noexcept;
+  </pre>
+  <ol>
+    <li>
+      <em>Effects:</em> Move constructs a <code>task</code> object that refers
+      to the coroutine that was originally referred to by <code>rhs</code> (if any).
+    </li>
+    <li>
+      <em>Postcondition:</em> <code>rhs</code> is empty.
+    </li>
+  </ol>
+  
 </body>
 </html>
