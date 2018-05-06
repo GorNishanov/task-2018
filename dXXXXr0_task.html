@@ -149,7 +149,7 @@ template&lt;&gt; class task&lt;void&gt;;
   template &lt;typename T&gt;
   class [[nodiscard]] task {
   public:
-    task(task&amp;&amp; __other) noexcept;
+    task(task&amp;&amp; rhs) noexcept;
     ~task();
     auto operator co_await(); <i>// exposition only</i>
   private:
@@ -163,17 +163,9 @@ template&lt;&gt; class task&lt;void&gt;;
     for some type <em>T</em>. In this subclause, we will refer to such a coroutine as 
     <em>task coroutine</em> and to type <em>T</em> as <em>eventual type</em>
     of a coroutine.  The implementation shall define class template <code>task</code> and provide
-    and two specializations, task&lt;&amp;T&gt; and task&lt;void;&gt;.
+    and two specializations, task&lt;&amp;T&gt; and task&lt;void&gt;.
     </li>
-<pre> task(task&amp;&amp; __other) noexcept; </pre>
-    <li>
-      <em>Effects:</em> Move constructs a <code>task</code> object that refers
-      to the coroutine that was originally referred to by <code>rhs</code> (if any).
-    </li>
-    <li>
-      <em>Postcondition:</em> <code>rhs</code> is empty.
-    </li>
-          
+    <br>
     <li>
     The implementation shall provide specializations of <code>coroutine_traits</code>
     as required to implement the following behavior:
@@ -227,7 +219,7 @@ template&lt;&gt; class task&lt;void&gt;;
   </ol>
 <h5>XX.YY.1.1 constructor</h5>
 <pre>
-  task(task&amp;&amp; __other) noexcept;
+  task(task&amp;&amp; rhs) noexcept;
 </pre>
   <li>
     <em>Effects:</em> Move constructs a <code>task</code> object that refers
@@ -237,16 +229,20 @@ template&lt;&gt; class task&lt;void&gt;;
     <em>Postcondition:</em> <code>rhs</code> is empty.
   </li>
 <h5>XX.YY.1.2 destructor</h5>
-<pre>
-  ~task(task&amp;&amp; __other) noexcept;
-  </pre>
+<pre>  ~task();  </pre>
   <ol>
+    <li>
+      <em>Requires:</em> the coroutine referred to by the <code>task</code> object
+      (if any) must be suspended.
+    </li>
     <li>
       <em>Effects:</em> Move constructs a <code>task</code> object that refers
       to the coroutine that was originally referred to by <code>rhs</code> (if any).
     </li>
     <li>
-      <em>Postcondition:</em> <code>rhs</code> is empty.
+      <em>Postcondition:</em> Referred to coroutine (if any) is destroyed.
+      <em>[Note: </em> A resumption of a destroyed coroutine
+       results in undefined behavior <em>-- end note]</em>
     </li>
   </ol>
   
