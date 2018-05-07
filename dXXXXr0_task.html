@@ -192,7 +192,7 @@ Here is the visual illustration.
 </p>
 <p>
   Being able to break apart bigger functions into a set of smaller ones and 
-  begin able to compose software by putting together small pieces is 
+  being able to compose software by putting together small pieces is 
   fundamental requirement for a good software engineering since the 60s.
   The overhead of <code>std::future</code> and types similar in behavior 
   makes them unsuitable coroutine type.
@@ -218,7 +218,7 @@ Here is the visual illustration.
 <p>The caller coroutine <code>f</code> owns the task object for <code>g</code>
   that is created and destroyed at the end of the full expression containing
   co_await. This allows
-  the compiler determine the lifetime of the coroutine and apply
+  the compiler to determine the lifetime of the coroutine and apply
   Heap Allocation Elision Optimization [P0981R0] that eliminates 
   allocation of a coroutines state by making it a temporary variable
   in its caller.
@@ -245,8 +245,8 @@ It does not require
 <p>The task coroutine always starts suspended. This allows not
   only to avoid synchronization when attaching a continuation, but 
   also enables solving via composition how and where
-  coroutine needs to get executed and to implement execution strategies
-  like continuation stealing</p>
+  coroutine needs to get executed and allows to implement advanced 
+  execution strategies like continuation stealing.</p>
 
   <p>Consider this example:</p>
 
@@ -265,8 +265,13 @@ In here, <code>fib(n-1)</code> returns a task in a suspended state.
 Awaiting on cilk_spawn adapter, queues the execution of the rest of the 
 function to a threadpool, and then resumes <code>f(n-1)</code>.
 Prior, this style of code was pioneered by Intel's cilk compiler and 
-now, C++ coroutines and proposed <code>task</code> type allows to express
-the problem in a similar style.
+now, C++ coroutines and proposed <code>task</code> type allows to solve
+the problem in a similar expressive style. (Note that we in no way
+advocating computing fibonacci sequence in this way, however, this
+seems to be a popular example demonstrating the benefits of 
+continuation stealing and we are following the trend. 
+Also we only sketched the abstraction required to implement
+cilk like scheduling, there may be even prettier way).
 
 <h2>Removing future overhead: Part 4. Scheduling overhead</h2>
 
@@ -291,8 +296,8 @@ the loop into unbounded recursion.
   the only way to get the result from a coroutine is
   by awaiting on it from another coroutine, the transfer of
   control from completing coroutine to awaiting coroutine is
-  done in symmetric fashion eliminating the need for extra
-  scheduling step.
+  done in symmetric fashion, thus eliminating the need for extra
+  scheduling interactions.
 </p>
 
 <h2>Destruction and cancellation</h2>
@@ -303,7 +308,8 @@ the coroutine in its destructor. It is safe to do, only if the coroutine
 has finished execution (at the final suspend point) 
 or it is in a suspended state (waiting for some operation)
 to complete, but, somehow, we know that the coroutine will never be 
-resumed by the entity which was supposed to resume the coroutine.
+resumed by the entity which was supposed to resume the coroutine
+on behalf of the operation that coroutine is awaiting upon.
 That is only possible if the underlying asynchronous facility support cancellation.
 </p>
 
