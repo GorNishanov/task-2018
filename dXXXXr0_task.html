@@ -52,7 +52,7 @@ border-collapse: collapse;
 -->
 <tr>
 <td align="left">Audience:</td>
-<td align="left">SG1/LEWG</td>
+<td align="left">SG1</td>
 </tr>
 <tr>
 <td align="left">Reply to:</td>
@@ -298,21 +298,54 @@ the loop into unbounded recursion.
 <h2>Destruction and cancellation</h2>
 
 <p>
-Note that <code>task</code> type unconditionally destroys 
+Note that the <code>task</code> type unconditionally destroys 
 the coroutine in its destructor. It is safe to do, only if the coroutine
 has finished execution (at the final suspend point) 
 or it is in a suspended state (waiting for some operation)
 to complete, but, somehow, we know that the coroutine will never be 
 resumed by the entity which was supposed to resume the coroutine.
+That is only possible if the underlying asynchronous facility support cancellation.
 </p>
 
 <p>
-  We
+We strongly believe that support for cancellation is a required 
+facility for writing asynchronous code and we struggled for awhile trying to
+decide what is the source of the cancellation, whether it is the task, 
+that must initiate cancellation (and therefore every await in every coroutine
+needs to understand how to cancel a particular operation it is being awaited upon)
+or every async operation is tied to a particular lifetime and cancellation domain
+and operations are cancelled in bulk by cancellation of the entire cancellation domain 
+[P0399R0].
 </p>
 
-
+<p>
+We experimented with both approaches and reached conclusion that 
+not performing cancellation from the task, but, pushing it to the cancellation
+domain lead to more efficient implementation and was simple for the users.
+</p>
 
 <h2>Why can't I put a task into the container</h2>
+
+<p>
+This is rather unorthodox decision and even authors of the paper did not completely
+agree on this topic. However, going with more restrictive model initially allows us to
+discover if the insight that lead to this decision was wrong.
+Initial design of the task, included move assignment, default constructor and swap.
+We removed them for two reasons.
+</p>
+<p>First: when observing how <code>task</code> was used. Whenever,
+a variable-size container of task was created, we discovered that
+it was a suboptimal choice and a better solution would not require
+a container of tasks.
+</p>
+<p>Second: move-assignment of a task is a ticking bomb. To make it safe,
+  we would need to introduce per task cancellation of associated 
+  coroutines and it is a very heavy-weight solution.
+</p>
+<p>At the moment we do not offer a move assignment, default constructor and swap.
+  If good use cases, for which there are no better ways to solve the same
+  problem are discovered, we can add them.
+</p>
 
 <h2>Interaction with allocators</h2>
 
@@ -414,13 +447,13 @@ to build higher level abstraction by composition.
 
 <h2>References</h2>
 
-P0981R0: <a href="https://wg21.link/P0981r0">Halo: Coroutine Heap Allocation eLision Optimization</a>
+[P0981R0]: <a href="https://wg21.link/P0981r0">Halo: Coroutine Heap Allocation eLision Optimization</a>
 <br>
-P0913R0: <a href="https://wg21.link/p0913r0">Symmetric coroutine control transfer</a>
+[P0913R0]: <a href="https://wg21.link/p0913r0">Symmetric coroutine control transfer</a>
 <br>
-CppCoro: <a href="https://github.com/lewissbaker/cppcoro">A library of C++ coroutine abstractions for the coroutines TS </a>
+[CppCoro]: <a href="https://github.com/lewissbaker/cppcoro">A library of C++ coroutine abstractions for the coroutines TS </a>
 <br>
-TpContext: <a href="https://wg21.link/p0399r0">Networking TS &amp; Threadpools</a>
+[P0399R0]: <a href="https://wg21.link/p0399r0">Networking TS &amp; Threadpools</a>
 
 <h2>Wording</h2>
 <h3>21.11 Coroutine support library [support.coroutine] </h3>
