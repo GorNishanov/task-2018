@@ -325,12 +325,13 @@ and operations are cancelled in bulk by cancellation of the entire cancellation 
 </p>
 
 <p>
-We experimented with both approaches and reached conclusion that 
+We experimented with both approaches and reached the conclusion that 
 not performing cancellation from the task, but, pushing it to the cancellation
-domain lead to more efficient implementation and was simple for the users.
+domain leads to more efficient implementation and is a simpler model
+ for the users.
 </p>
 
-<h2>Why can't I put a task into the container</h2>
+<h2>Why can't I put a task into a container</h2>
 
 <p>
 This is rather unorthodox decision and even authors of the paper did not completely
@@ -339,9 +340,10 @@ discover if the insight that lead to this decision was wrong.
 Initial design of the task, included move assignment, default constructor and swap.
 We removed them for two reasons.
 </p>
-<p>First: when observing how <code>task</code> was used. Whenever,
-a variable-size container of task was created, we discovered that
-it was a suboptimal choice and a better solution would not require
+<p>First, when observing how <code>task</code> was used, we noticed
+that whenever,
+a variable-size container of tasks was created, we later realized that
+it was a suboptimal choice and a better solution did not require
 a container of tasks.
 </p>
 <p>Second: move-assignment of a task is a ticking bomb. To make it safe,
@@ -368,7 +370,7 @@ Examples:
 <pre>
   task&lt;int&gt; f(int, float); // uses default allocator if needed
   
-  task&lt;int&gt; f(allocator_arg_t, pmr::polymorphic_allocator&lt;&gt; a); // uses a to allocate
+  task&lt;int&gt; f(allocator_arg_t, pmr::polymorphic_allocator&lt;&gt; a); // uses a to allocate, if needed
   
   template &lt;typename Alloc&gt;
   task&lt;int&gt; f(allocator_arg_t, Alloc a); // uses allocator a to allocate. if needed
@@ -402,7 +404,7 @@ The last case is only needed if f() cannot start executing in the current thread
 for some reason. We expect that this will not be a common case. Usually, 
 when a coroutine has unusual requirements on where it needs to be executed it
 can be encoded directly in f without forcing the callers of f, to do extra work.
-Typically, this this manner:
+Typically, in this manner:
 <pre>
   task&lt;T&gt; f() {
     co_await make_sure_I_am_on_the_right_thread();
@@ -440,6 +442,12 @@ returns a <code>future</code> representing the result of the computation.
 <pre>
   template &lt;typename T&gt; T async(task&lt;T&gt;);
 </pre>
+<!---
+One would use std::async if they need to launch 
+a task, do something else meanwhile without blocking the current thread
+before requesting  -->
+
+One would use this version of <code>std::async</code> 
 if blocking behavior of <code>sync_await</code> is undesirable.
 </p>
 
