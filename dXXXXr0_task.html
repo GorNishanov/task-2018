@@ -60,6 +60,135 @@ border-collapse: collapse;
 </tr>
 </table>
 <h1>Add coroutine task type</h1>
+<h2>Overview</h2>
+<p>
+The coroutines TS has introduced a language capability that allows functions to be
+suspended and later resumed. One of the key applications for this new feature is to make
+it easier to write asynchronous code. However, the coroutines TS itself does not (yet) 
+provide any types that directly support writing asynchronous code.
+</p>
+<p>
+This paper proposes adding a new type, std::task&lt;T&gt;, to the standard library
+to enable creation and composition of coroutines representing asynchronous computation. 
+
+<!-- 
+Similar to the std::future&gt;T&lt; type, the task&lt;T&gt; type represents an operation
+that produces a either a single value or an exception asynchronously.
+However, unlike std::future&gt;T&gt; that -->
+</p>
+<!--
+<p>
+Unlike std::future&lt;T&gt;, the std::task&lt;T&gt; type does not provide a 
+publicly accessible promise object that can be used to produce the result. 
+Instead, the result is produced by a coroutine function whose body eventually
+executes a co_return statement or that completes with an unhandled exception.
+</p>
+-->
+<pre>
+  #include &lt;experimental/task&gt;
+  #include &lt;string&gt;
+  
+  struct record
+  {
+    int id;
+    std::string name;
+    std::string description;
+  };
+  
+  std::task&lt;record&gt; load_record(int id);
+  std::task&lt;&gt; save_record(record r);
+  
+  std::task&lt;void&gt; modify_record()
+  {
+    record r = co_await load_record(123);
+    r.description = “Look, ma, no blocking!”;
+    co_await save_record(std::move(r));
+  }
+</pre>
+<p>
+  The interface of task is intentionally minimalistic and designed 
+  for efficiency. In fact, the only operation you can do with the task
+  is to await on it.
+  <pre>
+    template &lt;typename T&gt;
+    class [[nodiscard]] task {
+    public:
+      task(task&amp;&amp; rhs) noexcept;
+      ~task();
+      auto operator co_await(); <i>// exposition only</i>
+    };      
+  </pre>
+  <!--
+  In the following sections, we will go over some of the (possibly) unorthorox decisions at first, they were 
+  chosen to make using tasks safer and to guide us
+  -->
+</p>
+<h2>Why not use futures with future.then?</h2>
+<p>
+  The <code>std::future</code> type is inherently inefficient and cannot be used
+  for efficient composition of asynchronous operations. The unavoidable cost overhead
+  of the futures is due to:
+  <ul>
+    <li>allocation/deallocation shared state object</li>
+    <li>atomic increment/decrement for managing the shared state</li>
+    <li>synchronization between setting of the state and getting the value</li>
+    <li>(with .then) scheduling overhead of executing subscribers to .then</li>
+  </ul>
+</p>
+<p>
+   Consider the following example:
+   <pre>
+      task&lt;int&gt; coro() {
+        int result = 0;
+        while (int v = co_await async_read())
+          result += v;
+        co_return result;
+      }    
+  </pre>
+  where <code>async_read()</code> is some asynchronous operation that takes say 4ns to 
+  perform. Let's say, we would like to factor out the logic into two 
+  coroutines:
+  <pre>
+      task<int> subtask() { co_return co_await async_read(); }
+        
+      task&lt;int&gt; coro_refactored() {
+        int result = 0;
+        while (int v = co_await subtask())
+          result += v;
+        co_return result;
+      }    
+  </pre>
+  Though, in this example, breaking a single `co_await` into its own function may
+  seem silly, it is a useful approach to measure the overhead of composition of
+  tasks. With proposed task, our per operation cost grew from 4ns to 6ns and 
+  did not incur any heap allocations. Moreover, this overhead of 2ns is not 
+  inherent to the task and we can anticipate that with improved coroutine
+  optimization technologies we will be able to drive the overhead to be close to 0.
+</p>
+<p>To estimate the cost of composition with <code>std::future</code>, we used
+  the following:
+  <pre>
+      int fut_test() {
+        int count = 1'000'000;
+        int result = 0;
+      
+        while (count > 0) {
+          promise<int> p;
+          auto fut = p.get_future();
+          p.set_value(count--);
+          result += fut.get();
+        }
+        return result;
+      }
+  </pre>
+  As measure on the same system (Linux, clang 6.0, libc++), we get <b>133ns</b> per operation!  
+</p>
+Here is the visual illustration.
+<pre>
+          op cost: ****
+    task overhead: **
+  future overhead: **********************************************************************************************************************************
+</pre>
 
 <h2>Wording</h2>
 <h3>21.11 Coroutine support library [support.coroutine] </h3>
@@ -136,6 +265,7 @@ inline namespace coroutines_v1 {
 template&lt;typename T = void&gt; class task;
 template&lt;typename T&gt; class task&lt;T&amp;&gt;;
 template&lt;&gt; class task&lt;void&gt;;
+
 } <em>// namespace coroutines_v1</em>
 } <em>// namespace std::experimental</em>
 </pre>
