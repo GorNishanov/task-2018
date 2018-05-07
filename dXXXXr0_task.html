@@ -118,6 +118,8 @@ executes a co_return statement or that completes with an unhandled exception.
       auto operator co_await(); <i>// exposition only</i>
     };      
   </pre>
+  While such small interface may seem unusual at first, subsequent
+  will clarify sections the rationale for this design.
   <!--
   In the following sections, we will go over some of the (possibly) unorthorox decisions at first, they were 
   chosen to make using tasks safer and to guide us
@@ -126,13 +128,13 @@ executes a co_return statement or that completes with an unhandled exception.
 <h2>Why not use futures with future.then?</h2>
 <p>
   The <code>std::future</code> type is inherently inefficient and cannot be used
-  for efficient composition of asynchronous operations. The unavoidable cost overhead
-  of the futures is due to:
+  for efficient composition of asynchronous operations. The unavoidable  overhead
+  of futures is due to:
   <ul>
     <li>allocation/deallocation shared state object</li>
     <li>atomic increment/decrement for managing the shared state</li>
-    <li>synchronization between setting of the state and getting the value</li>
-    <li>(with .then) scheduling overhead of executing subscribers to .then</li>
+    <li>synchronization between setting of the result and getting the result</li>
+    <li>(with .then) scheduling overhead of starting execution of subscribers to .then</li>
   </ul>
 </p>
 <p>
@@ -145,9 +147,8 @@ executes a co_return statement or that completes with an unhandled exception.
         co_return result;
       }    
   </pre>
-  where <code>async_read()</code> is some asynchronous operation that takes say 4ns to 
-  perform. Let's say, we would like to factor out the logic into two 
-  coroutines:
+  where <code>async_read()</code> is some asynchronous operation that takes, say 4ns, to 
+  perform. We would like to factor out the logic into two    coroutines:
   <pre>
       task<int> subtask() { co_return co_await async_read(); }
         
@@ -163,10 +164,10 @@ executes a co_return statement or that completes with an unhandled exception.
   tasks. With proposed task, our per operation cost grew from 4ns to 6ns and 
   did not incur any heap allocations. Moreover, this overhead of 2ns is not 
   inherent to the task and we can anticipate that with improved coroutine
-  optimization technologies we will be able to drive the overhead to be close to 0.
+  optimization technologies we will be able to drive the overhead to be close to zero.
 </p>
 <p>To estimate the cost of composition with <code>std::future</code>, we used
-  the following:
+  the following code:
   <pre>
       int fut_test() {
         int count = 1'000'000;
@@ -181,15 +182,79 @@ executes a co_return statement or that completes with an unhandled exception.
         return result;
       }
   </pre>
-  As measure on the same system (Linux, clang 6.0, libc++), we get <b>133ns</b> per operation!  
-</p>
+  As measured on the same system (Linux, clang 6.0, libc++), we get <b>133ns</b> per operation!  
 Here is the visual illustration.
 <pre>
           op cost: ****
     task overhead: **
   future overhead: **********************************************************************************************************************************
 </pre>
+</p>
+<p>
+  Being able to break apart bigger functions into a set of smaller ones and 
+  begin able to compose software by putting together small pieces is 
+  fundamental requirement for a good software engineering since the 60s.
+  The overhead of <code>std::future</code> and types similar in behavior 
+  makes them unsuitable coroutine type.
+</p>
 
+<h2>Removing future overhead: Part 1. Memory Allocation</h2>
+
+<p><code>task</code> destructor destroys the coroutine.</p>
+
+<p>Type <code>task</code> .</p>
+
+The <code>task</code> object points directly at the coroutine state.
+It does not require 
+
+<h2>Removing future overhead: Part 2. Reference counting</h2>
+
+<p>The coroutine state is not shared. The task type only allows
+  moving pointer to a coroutine from one task object to another.
+  No reference counting is required. 
+
+</p>
+<p><code>task</code> destructor destroys the coroutine.</p>
+
+<h2>Removing future overhead: Part 3. Set/Get synchronization</h2>
+<p>Coroutine starts suspended.</p>
+
+<h2>Removing future overhead: Part 4. Scheduling overhead</h2>
+
+<h2>Destruction and cancellation</h2>
+
+<h2>Interaction with allocators</h2>
+
+<!-- ******************************************* -->
+<h2>But what about main?</h2>
+<!-- ******************************************* -->
+<p>
+  As we mentioned in the beginning, the only operation that one can do on a task
+  is to await on it (as if by `co_await` operator). Using an <em>await-expression</em>
+  in a function turns it into a coroutine. But, this cannot go on forever,
+  at some point, we have to interact with coroutine from a function that is not a 
+  coroutine itself, <code>main</code>, for example. What to do?
+</p>
+<p>
+  There could be several functions that can bridge the gap
+  between synchronous and asynchronous world. For example:
+</p>
+<pre>
+  template &lt;typename T&gt; T sync_await(task&lt;T&gt;);
+</pre>
+<p>
+  That starts the task execution of a task in the current thread and, if it gets suspended,
+  blocks until the result is available. Note, here 
+  to simplify the signature, we show it only taking objects of <code>task</code>
+  type. This function can be written generically to handle arbitrary awaitables.
+</p>
+<p> Another function could be a variant of <code>std::async</code> that
+launches execution of a <code>task</code> on a thread pool and 
+returns a <code>future</code> representing the result of the computation.
+<pre>
+  template &lt;typename T&gt; T sync_await(task&lt;T&gt;);
+</pre>
+</p>
 <h2>Wording</h2>
 <h3>21.11 Coroutine support library [support.coroutine] </h3>
 Add the following concept definitions to synopsis of header &lt;experimental/coroutine&gt;
