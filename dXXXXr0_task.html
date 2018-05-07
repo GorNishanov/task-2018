@@ -119,7 +119,7 @@ executes a co_return statement or that completes with an unhandled exception.
     };      
   </pre>
   While such small interface may seem unusual at first, subsequent
-  will clarify sections the rationale for this design.
+  sections will clarify the rationale for this design.
   <!--
   In the following sections, we will go over some of the (possibly) unorthorox decisions at first, they were 
   chosen to make using tasks safer and to guide us
@@ -131,8 +131,8 @@ executes a co_return statement or that completes with an unhandled exception.
   for efficient composition of asynchronous operations. The unavoidable  overhead
   of futures is due to:
   <ul>
-    <li>allocation/deallocation shared state object</li>
-    <li>atomic increment/decrement for managing the shared state</li>
+    <li>allocation/deallocation of the shared state object</li>
+    <li>atomic increment/decrement for managing the lifetime of the shared state object</li>
     <li>synchronization between setting of the result and getting the result</li>
     <li>(with .then) scheduling overhead of starting execution of subscribers to .then</li>
   </ul>
@@ -150,7 +150,7 @@ executes a co_return statement or that completes with an unhandled exception.
   where <code>async_read()</code> is some asynchronous operation that takes, say 4ns, to 
   perform. We would like to factor out the logic into two    coroutines:
   <pre>
-      task<int> subtask() { co_return co_await async_read(); }
+      task&lt;int&gt; subtask() { co_return co_await async_read(); }
         
       task&lt;int&gt; coro_refactored() {
         int result = 0;
@@ -159,8 +159,8 @@ executes a co_return statement or that completes with an unhandled exception.
         co_return result;
       }    
   </pre>
-  Though, in this example, breaking a single `co_await` into its own function may
-  seem silly, it is a useful approach to measure the overhead of composition of
+  Though, in this example, breaking a single <code>co_await</code> into its own function may
+  seem silly, it is a technique that allows us to measure the overhead of composition of
   tasks. With proposed task, our per operation cost grew from 4ns to 6ns and 
   did not incur any heap allocations. Moreover, this overhead of 2ns is not 
   inherent to the task and we can anticipate that with improved coroutine
