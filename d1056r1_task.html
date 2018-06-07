@@ -29,10 +29,10 @@ border-collapse: collapse;
 <table>
 <tr>
 <td align="left">Doc. no.</td>
-<td align="left">P1056R0</td>
+<td align="left">D1056R1</td>
 </tr>
 <tr>
-<td align="left">Revises</td>
+<td align="left">P1056R0</td>
 <td align="left">none</td>
 </tr>
 <tr>
@@ -56,7 +56,7 @@ border-collapse: collapse;
 </tr>
 <tr>
 <td align="left">Reply to:</td>
-<td align="left">Lewis Baker &lt;<a href="mailto:LewisBaker@gmail.com">LewisBaker@gmail.com</a>&gt;, Gor Nishanov &lt;<a href="mailto:gorn@microsoft.com">gorn@microsoft.com</a>&gt;</td>
+<td align="left">Lewis Baker &lt;<a href="mailto:lewissbaker@gmail.com">lewissbaker@gmail.com</a>&gt;, Gor Nishanov &lt;<a href="mailto:gorn@microsoft.com">gorn@microsoft.com</a>&gt;</td>
 </tr>
 </table>
 <h1>Add coroutine task type</h1>
@@ -70,7 +70,15 @@ provide any types that directly support writing asynchronous code.
 <p>
 This paper proposes adding a new type, std::task&lt;T&gt;, to the standard library
 to enable creation and composition of coroutines representing asynchronous computation. 
-
+<p>
+<p>
+<em><b>[Note: SG1 would like to keep the name <code>std::task</code> for something else.
+  SG1 requested to pick a different name. 
+  We intend to bikeshed between the meetings and come up with the 
+  final name for approval in San Diego. --] 
+</b></em>
+</p>  
+</p>
 <!-- 
 Similar to the std::future&gt;T&lt; type, the task&lt;T&gt; type represents an operation
 that produces a either a single value or an exception asynchronously.
@@ -390,6 +398,9 @@ Examples:
 <pre>
   co_await f().via(e);
 </pre>
+<em>[Note -- Member function <code>via</code> is not part of the task at the moment. We envision this as one possible way of how to express the desire to execute continuation in a different executor. 
+For more details see P0975R0 that explores impact of coroutines on
+various existing proposals in flight -- endnote]</em>
 
 <p>Case 3: Starts by an executor ex, resumes in the thread that triggered the completion of f().</p>
 <pre>
@@ -464,6 +475,8 @@ to build higher level abstraction by composition.
 [P0981R0]: <a href="https://wg21.link/P0981r0">Halo: Coroutine Heap Allocation eLision Optimization</a>
 <br>
 [P0913R0]: <a href="https://wg21.link/p0913r0">Symmetric coroutine control transfer</a>
+<br>
+[P0975R0]: <a href="https://wg21.link/p0975r0">Impact of coroutines on current and upcoming library facilities</a>
 <br>
 [CppCoro]: <a href="https://github.com/lewissbaker/cppcoro">A library of C++ coroutine abstractions for the coroutines TS </a>
 <br>
@@ -643,14 +656,18 @@ template&lt;&gt; class task&lt;void&gt;;
       <em>Requires:</em> the coroutine referred to by the <code>task</code> object
       (if any) must be suspended.
     </li>
+    <!--
     <li>
       <em>Effects:</em> Move constructs a <code>task</code> object that refers
       to the coroutine that was originally referred to by <code>rhs</code> (if any).
     </li>
+    -->
     <li>
-      <em>Postcondition:</em> Referred to coroutine (if any) is destroyed.
+      <em>Effects:</em> The coroutine (if any) referred to 
+      by the task object is destroyed.
+      <!--
       <em>[Note: </em> A resumption of a destroyed coroutine
-       results in undefined behavior <em>-- end note]</em>
+       results in undefined behavior <em>-- end note]</em>-->
     </li>
   </ol>
   
