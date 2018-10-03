@@ -584,7 +584,7 @@ template&lt;&gt; class task&lt;void&gt;;
     for some type <em>T</em>. In this subclause, we will refer to such a coroutine as 
     <em>task coroutine</em> and to type <em>T</em> as <em>eventual type</em>
     of a coroutine.  The implementation shall define class template <code>task</code> and provide
-    and two specializations, task&lt;&amp;T&gt; and task&lt;void&gt;.
+    and two specializations, task&lt;T&amp;&gt; and task&lt;void&gt;.
     </li>
     <br>
     <li>
@@ -603,7 +603,7 @@ template&lt;&gt; class task&lt;void&gt;;
       <li>
         A type of a task object shall satisfy the <code>Awaitable</code> concept and
         awaiting on a task object in the <em>armed</em> state as 
-        if by <code>co_await<em>t</em></code> (8.3.8) shall register the
+        if by <code>co_await</code> <em>t</em> (8.3.8) shall register the
         awaiting coroutine <em>a</em> with task object <em>t</em> 
         and resume the coroutine <em>f</em>.
         At this point task object <em>t</em>
@@ -627,7 +627,7 @@ template&lt;&gt; class task&lt;void&gt;;
         <code>allocator_arg_t</code>, then the coroutine must have at least two arguments
         and the type of the second parameter shall satisfy the <code>Allocator</code> 
         requirements (Table 31) and if dynamic allocation required to store 
-        the coroutine state (11.4.4), implementation should use provided allocator to
+        the coroutine state (11.4.4), implementation shall use provided allocator to
         allocate and deallocate the coroutine state.
       </li>
       <br>
