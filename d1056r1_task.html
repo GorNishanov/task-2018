@@ -642,11 +642,29 @@ template&lt;&gt; class task&lt;void&gt;;
       </li>
     </ol>
     </p>
+    <!--
+    <li>
+      <p>Constructor:</p>
+      <pre>
+          task(task&amp;&amp; rhs) noexcept;
+        </pre>
+        <ol>
+          <li>
+            <em>Effects:</em> Move constructs a <code>task</code> object that refers
+            to the coroutine that was originally referred to by <code>rhs</code> (if any).
+          </li>
+          <li>
+            <em>Postcondition:</em> <code>rhs</code> is empty.
+          </li>
+        </ol>
+    </li>
+    -->
   </ol>
-<h5>XX.1.3.1 constructor</h5>
+<h5>XX.1.3.1 constructor/destructor [coroutine.task.type.ctor.dtor]</h5>
 <pre>
   task(task&amp;&amp; rhs) noexcept;
 </pre>
+  <ol>
   <li>
     <em>Effects:</em> Move constructs a <code>task</code> object that refers
     to the coroutine that was originally referred to by <code>rhs</code> (if any).
@@ -654,9 +672,9 @@ template&lt;&gt; class task&lt;void&gt;;
   <li>
     <em>Postcondition:</em> <code>rhs</code> is empty.
   </li>
-<h5>XX.1.3.2 destructor</h5>
+  </ol>
 <pre>  ~task();  </pre>
-  <ol>
+  <ol start=3>
     <li>
       <em>Requires:</em> The coroutine referred to by the <code>task</code> object
       (if any) must be suspended.
