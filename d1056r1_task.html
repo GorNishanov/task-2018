@@ -577,8 +577,8 @@ template&lt;&gt; class task&lt;void&gt;;
   public:
     task(task&amp;&amp; rhs) noexcept;
     ~task();
-    <i>unspecified</i> operator co_await() &;
-    <i>unspecified</i> operator co_await() &&;
+    <i>unspecified</i> operator co_await() &;  <em>// exposition only</em>
+    <i>unspecified</i> operator co_await() &&; <em>// exposition only</em>
   };      
 </pre>
     <li>
@@ -616,15 +616,33 @@ template&lt;&gt; class task&lt;void&gt;;
         that is not in the armed state has undefined behavior.
       </li>
       <br>
+      <li>
+          Let <em>sa</em> be a simple awaitable of <em>t</em> (21.11.6).
+          If the <em>compound-statement</em> of the <em>function-body</em> of the coroutine <em>f</em>
+          completes with an unhandled exception, the awaiting coroutine <em>a</em> is resumed
+          and an expression <code><em>sa</em>.await_resume()</code> shall rethrow that exception.
+      </li>
+      <br>
+      <li>
+          If the eventual type of a coroutine <em>f</em> is <code>void</code>
+          and the coroutine completes due to an execution of
+          a <em>coroutine return statement</em> (9.6.3), 
+          or flowing off the end of a coroutine,
+          the awaiting coroutine <em>a</em> is resumed and an expression
+          <code><em>sa</em>.await_resume()</code>
+          shall evaluate to <code>void</code>. 
+          </li>
+      <br>
       <li>        
-        Let <em>sa</em> be a simple awaitable of <em>t</em> (21.11.6).
-        If coroutine <em>f</em> completes due to execution of
-        a <em>coroutine return statement</em> (9.6.3) or an unhandled
-        exception leaving the user-authored body of the coroutine,
+        If the eventual type of a coroutine <em>f</em> is a non-<code>void</code> 
+        and the coroutine completes due to an execution of
+        a <em>coroutine return statement</em> (9.6.3),
+        the operand of the <em>coroutine return statement</em> shall 
+        be stored in the coroutine state and 
         the awaiting coroutine <em>a</em> is resumed and an expression
         <code><em>sa</em>.await_resume()</code>
-        shall evaluate to the operand of <code>co_return</code> 
-        statement in coroutine <em>f</em>, or shall throw the exception, respectively. 
+        shall return the stored value if <em>t</em> is an rvalue
+        or reference to a stored value, otherwise.
       </li>
       <br>
       <li>
