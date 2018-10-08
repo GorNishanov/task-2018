@@ -541,9 +541,9 @@ concept Awaitable = __HasMemberOperatorCoawait&lt;A&gt;
 <li>
   If the type of an expression <em>E</em> satisfies the <code>Awaitable</code>
   concept then the term <em>simple awaitable of E</em> refers to an object
-  satisfying <code>SimpleAwaitable</code> concept that is either the expression <em>E</em> itself
-  or the result of an application of <code>operator co_await</code>
-  to the result of <em>E</em> (if exists).
+  satisfying the <code>SimpleAwaitable</code> concept that is either the expression <em>E</em> itself
+  or the result of an application (if available) of <code>operator co_await</code>
+  to <em>E</em>.
 </li>
 </li>
 </ol>
@@ -568,9 +568,8 @@ template&lt;&gt; class task&lt;void&gt;;
 } <em>// namespace std::experimental</em>
 </pre>
 </blockquote>
-<ol><li>
-</li></ol>
-<h4>XX.1.3 Class template <code>task</code> [coroutine.task.task]</h4>
+
+<h4>XX.1.3 Class template <code>task</code> [coroutine.task.type]</h4>
 <ol>
   <pre>
   template &lt;typename T&gt;
@@ -578,9 +577,8 @@ template&lt;&gt; class task&lt;void&gt;;
   public:
     task(task&amp;&amp; rhs) noexcept;
     ~task();
-    auto operator co_await(); <i>// exposition only</i>
-  private:
-    coroutine_handle&lt;<em>unspecified</em>&gt; h; <i>// exposition only</i>
+    <i>unspecified</i> operator co_await() &;
+    <i>unspecified</i> operator co_await() &&;
   };      
 </pre>
     <li>
@@ -588,9 +586,10 @@ template&lt;&gt; class task&lt;void&gt;;
     <em>coroutine task object</em> that can be associated with a
     coroutine which return type is <code>task&lt;<em>T</em>&gt;</code>
     for some type <em>T</em>. In this subclause, we will refer to such a coroutine as 
-    <em>task coroutine</em> and to type <em>T</em> as <em>eventual type</em>
-    of a coroutine.  The implementation shall define class template <code>task</code> and provide
-    and two specializations, task&lt;T&amp;&gt; and task&lt;void&gt;.
+    a <em>task coroutine</em> and to type <em>T</em> as the <em>eventual type</em>
+    of a coroutine. 
+    <!-- The implementation shall define class template <code>task</code> and provide
+    and two specializations, task&lt;T&amp;&gt; and task&lt;void&gt;. -->
     </li>
     <br>
     <li>
@@ -601,20 +600,20 @@ template&lt;&gt; class task&lt;void&gt;;
       <li>
         A call to a task coroutine <em>f</em>
         shall return a task object <em>t</em> associated with 
-        that coroutine. The called coroutine must be suspended 
+        that coroutine. The called coroutine shall be suspended 
         at the initial suspend point (11.4.4).
-        Such task object is considered to be in the <em>armed</em> state.        
+        Such a task object is considered to be in the <em>armed</em> state.        
       </li>
       <br>
       <li>
-        A type of a task object shall satisfy the <code>Awaitable</code> concept and
-        awaiting on a task object in the <em>armed</em> state as 
+        The type of a task object shall satisfy the <code>Awaitable</code> concept and
+        awaiting on a task object in the armed state as 
         if by <code>co_await</code> <em>t</em> (8.3.8) shall register the
-        awaiting coroutine <em>a</em> with task object <em>t</em> 
+        awaiting coroutine <em>a</em> with the task object <em>t</em> 
         and resume the coroutine <em>f</em>.
-        At this point task object <em>t</em>
+        At this point <em>t</em>
         is considered to be in a <em>launched</em> state. Awaiting on a task object
-        that is not in the <em>armed</em> state has undefined behavior.
+        that is not in the armed state has undefined behavior.
       </li>
       <br>
       <li>        
@@ -622,7 +621,7 @@ template&lt;&gt; class task&lt;void&gt;;
         If coroutine <em>f</em> completes due to execution of
         a <em>coroutine return statement</em> (9.6.3) or an unhandled
         exception leaving the user-authored body of the coroutine,
-        awaiting coroutine <em>a</em> is resumed and an expression
+        the awaiting coroutine <em>a</em> is resumed and an expression
         <code><em>sa</em>.await_resume()</code>
         shall evaluate to the operand of <code>co_return</code> 
         statement in coroutine <em>f</em>, or shall throw the exception, respectively. 
@@ -630,15 +629,15 @@ template&lt;&gt; class task&lt;void&gt;;
       <br>
       <li>
         If in the definition of the coroutine <em>g</em>, the first parameter has type
-        <code>allocator_arg_t</code>, then the coroutine must have at least two arguments
+        <code>allocator_arg_t</code>, then the coroutine shall have at least two arguments
         and the type of the second parameter shall satisfy the <code>Allocator</code> 
-        requirements (Table 31) and if dynamic allocation required to store 
-        the coroutine state (11.4.4), implementation shall use provided allocator to
+        requirements (Table 31) and if dynamic allocation is required to store 
+        the coroutine state (11.4.4), implementation shall use the provided allocator to
         allocate and deallocate the coroutine state.
       </li>
       <br>
       <li>
-        If <em>yield-expression</em> (8.20) occurs in the suspension context of
+        If a <em>yield-expression</em> (8.20) occurs in the suspension context of
         the task coroutine, the program is ill-formed.
       </li>
     </ol>
@@ -659,7 +658,7 @@ template&lt;&gt; class task&lt;void&gt;;
 <pre>  ~task();  </pre>
   <ol>
     <li>
-      <em>Requires:</em> the coroutine referred to by the <code>task</code> object
+      <em>Requires:</em> The coroutine referred to by the <code>task</code> object
       (if any) must be suspended.
     </li>
     <!--
