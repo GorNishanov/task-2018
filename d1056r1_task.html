@@ -4,7 +4,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Add coroutine task type</title>
+<title>Add coroutine lazy type</title>
 <style type="text/css">
 p {text-align:justify}
 li {text-align:justify}
@@ -59,41 +59,39 @@ border-collapse: collapse;
 <td align="left">Lewis Baker &lt;<a href="mailto:lewissbaker@gmail.com">lewissbaker@gmail.com</a>&gt;, Gor Nishanov &lt;<a href="mailto:gorn@microsoft.com">gorn@microsoft.com</a>&gt;</td>
 </tr>
 </table>
-<h1>Add coroutine task type</h1>
+<h1>Add lazy coroutine (coroutine task) type</h1>
 <h2>Overview</h2>
 <p>
 The coroutines TS has introduced a language capability that allows functions to be
 suspended and later resumed. One of the key applications for this new feature is to make
-it easier to write asynchronous code. However, the coroutines TS itself does not (yet) 
-provide any types that directly support writing asynchronous code.
+it easier to write asynchronous code. However, the coroutines TS itself does not  
+include any concrete coroutine types that directly support writing asynchronous code.
 </p>
 <p>
-This paper proposes adding a new type, std::task&lt;T&gt;, to the standard library
+This paper proposes adding a new type, std::lazy&lt;T&gt;, to the standard library
 to enable creation and composition of coroutines representing asynchronous computation. 
 <p>
-<p>
 <em><b>[Note: SG1 would like to keep the name <code>std::task</code> for something else.
-  SG1 requested to pick a different name. 
-  We intend to bikeshed between the meetings and come up with the 
-  final name for approval in San Diego. --] 
+  SG1 requested to pick a different name. LEWG picked <code>lazy</code>. endnote --] 
 </b></em>
+<p>
 </p>  
 </p>
 <!-- 
-Similar to the std::future&gt;T&lt; type, the task&lt;T&gt; type represents an operation
+Similar to the std::future&gt;T&lt; type, the lazy&lt;T&gt; type represents an operation
 that produces a either a single value or an exception asynchronously.
 However, unlike std::future&gt;T&gt; that -->
 </p>
 <!--
 <p>
-Unlike std::future&lt;T&gt;, the std::task&lt;T&gt; type does not provide a 
+Unlike std::future&lt;T&gt;, the std::lazy&lt;T&gt; type does not provide a 
 publicly accessible promise object that can be used to produce the result. 
 Instead, the result is produced by a coroutine function whose body eventually
 executes a co_return statement or that completes with an unhandled exception.
 </p>
 -->
 <pre>
-  #include &lt;experimental/task&gt;
+  #include &lt;experimental/lazy&gt;
   #include &lt;string&gt;
   
   struct record
@@ -103,10 +101,10 @@ executes a co_return statement or that completes with an unhandled exception.
     std::string description;
   };
   
-  std::task&lt;record&gt; load_record(int id);
-  std::task&lt;&gt; save_record(record r);
+  std::lazy&lt;record&gt; load_record(int id);
+  std::lazy&lt;&gt; save_record(record r);
   
-  std::task&lt;void&gt; modify_record()
+  std::lazy&lt;void&gt; modify_record()
   {
     record r = co_await load_record(123);
     r.description = “Look, ma, no blocking!”;
@@ -114,16 +112,16 @@ executes a co_return statement or that completes with an unhandled exception.
   }
 </pre>
 <p>
-  The interface of task is intentionally minimalistic and designed 
-  for efficiency. In fact, the only operation you can do with the task
+  The interface of lazy is intentionally minimalistic and designed 
+  for efficiency. In fact, the only operation you can do with the lazy
   is to await on it.
   <pre>
     template &lt;typename T&gt;
-    class [[nodiscard]] task {
+    class [[nodiscard]] lazy {
     public:
-      task(task&amp;&amp; rhs) noexcept;
-      ~task();
-      auto operator co_await(); <i>// exposition only</i>
+      lazy(lazy&amp;&amp; rhs) noexcept;
+      ~lazy();
+      <em>unspecified</em> operator co_await(); <i>// exposition only</i>
     };      
   </pre>
   While such small interface may seem unusual at first, subsequent
@@ -148,7 +146,7 @@ executes a co_return statement or that completes with an unhandled exception.
 <p>
    Consider the following example:
    <pre>
-      task&lt;int&gt; coro() {
+      lazy&lt;int&gt; coro() {
         int result = 0;
         while (int v = co_await async_read())
           result += v;
@@ -158,9 +156,9 @@ executes a co_return statement or that completes with an unhandled exception.
   where <code>async_read()</code> is some asynchronous operation that takes, say 4ns, to 
   perform. We would like to factor out the logic into two    coroutines:
   <pre>
-      task&lt;int&gt; subtask() { co_return co_await async_read(); }
+      lazy&lt;int&gt; subtask() { co_return co_await async_read(); }
         
-      task&lt;int&gt; coro_refactored() {
+      lazy&lt;int&gt; coro_refactored() {
         int result = 0;
         while (int v = co_await subtask())
           result += v;
@@ -169,9 +167,9 @@ executes a co_return statement or that completes with an unhandled exception.
   </pre>
   Though, in this example, breaking a single <code>co_await</code> into its own function may
   seem silly, it is a technique that allows us to measure the overhead of composition of
-  tasks. With proposed task, our per operation cost grew from 4ns to 6ns and 
+  tasks. With proposed lazy, our per operation cost grew from 4ns to 6ns and 
   did not incur any heap allocations. Moreover, this overhead of 2ns is not 
-  inherent to the task and we can anticipate that with improved coroutine
+  inherent to the lazy and we can anticipate that with improved coroutine
   optimization technologies we will be able to drive the overhead to be close to zero.
 </p>
 <p>To estimate the cost of composition with <code>std::future</code>, we used
@@ -194,7 +192,7 @@ executes a co_return statement or that completes with an unhandled exception.
 Here is the visual illustration.
 <pre>
           op cost: ****
-    task overhead: **
+    lazy overhead: **
   future overhead: **********************************************************************************************************************************
 </pre>
 </p>
@@ -217,13 +215,13 @@ Here is the visual illustration.
   protocol to 
 </p>
 -->
-<p>Consider the only operation that is available on a task, namely, awaiting on it.</p>
+<p>Consider the only operation that is available on a lazy, namely, awaiting on it.</p>
 <pre>
-  task&lt;X&gt; g();
-  task&lt;Y&gt; f() { .... X x = co_await g(); ... }  
+  lazy&lt;X&gt; g();
+  lazy&lt;Y&gt; f() { .... X x = co_await g(); ... }  
 </pre>
 
-<p>The caller coroutine <code>f</code> owns the task object for <code>g</code>
+<p>The caller coroutine <code>f</code> owns the lazy object for <code>g</code>
   that is created and destroyed at the end of the full expression containing
   co_await. This allows
   the compiler to determine the lifetime of the coroutine and apply
@@ -233,15 +231,15 @@ Here is the visual illustration.
 </p>
 
 <!--
-The <code>task</code> object points directly at the coroutine state.
+The <code>lazy</code> object points directly at the coroutine state.
 It does not require 
 -->
 <h2>Removing future overhead: Part 2. Reference counting</h2>
 
-<p>The coroutine state is not shared. The task type only allows
-  moving pointer to a coroutine from one task object to another.
-  Lifetime of a coroutine is linked to its task object and
-  task object destructors destroys the coroutine, thus, 
+<p>The coroutine state is not shared. The lazy type only allows
+  moving pointer to a coroutine from one lazy object to another.
+  Lifetime of a coroutine is linked to its lazy object and
+  lazy object destructors destroys the coroutine, thus, 
   no reference counting is required.
 </p>
 <p>
@@ -250,7 +248,7 @@ It does not require
 </p>
 
 <h2>Removing future overhead: Part 3. Set/Get synchronization</h2>
-<p>The task coroutine always starts suspended. This allows not
+<p>The lazy coroutine always starts suspended. This allows not
   only to avoid synchronization when attaching a continuation, but 
   also enables solving via composition how and where
   coroutine needs to get executed and allows to implement advanced 
@@ -259,7 +257,7 @@ It does not require
   <p>Consider this example:</p>
 
 <pre>
-  task&lt;int&gt; fib(int n) {
+  lazy&lt;int&gt; fib(int n) {
     if (n &lt; 2)
         return n;
     auto xx = co_await cilk_spawn(fib(n-1)); // continuation stealing
@@ -269,11 +267,11 @@ It does not require
   }        
 </pre>
 
-In here, <code>fib(n-1)</code> returns a task in a suspended state.
+In here, <code>fib(n-1)</code> returns a lazy in a suspended state.
 Awaiting on cilk_spawn adapter, queues the execution of the rest of the 
 function to a threadpool, and then resumes <code>f(n-1)</code>.
 Prior, this style of code was pioneered by Intel's cilk compiler and 
-now, C++ coroutines and proposed <code>task</code> type allows to solve
+now, C++ coroutines and proposed <code>lazy</code> type allows to solve
 the problem in a similar expressive style. (Note that we in no way
 advocating computing fibonacci sequence in this way, however, this
 seems to be a popular example demonstrating the benefits of 
@@ -300,7 +298,7 @@ the loop into unbounded recursion.
 <p>
   On the other hand, coroutines have built-in support for
   symmetric coroutine to coroutine transfer [p0913r0]. Since
-  task object can only be created by a coroutine and
+  lazy object can only be created by a coroutine and
   the only way to get the result from a coroutine is
   by awaiting on it from another coroutine, the transfer of
   control from completing coroutine to awaiting coroutine is
@@ -311,7 +309,7 @@ the loop into unbounded recursion.
 <h2>Destruction and cancellation</h2>
 
 <p>
-Note that the <code>task</code> type unconditionally destroys 
+Note that the <code>lazy</code> type unconditionally destroys 
 the coroutine in its destructor. It is safe to do, only if the coroutine
 has finished execution (at the final suspend point) 
 or it is in a suspended state (waiting for some operation)
@@ -324,7 +322,7 @@ That is only possible if the underlying asynchronous facility support cancellati
 <p>
 We strongly believe that support for cancellation is a required 
 facility for writing asynchronous code and we struggled for awhile trying to
-decide what is the source of the cancellation, whether it is the task, 
+decide what is the source of the cancellation, whether it is the lazy, 
 that must initiate cancellation (and therefore every await in every coroutine
 needs to understand how to cancel a particular operation it is being awaited upon)
 or every async operation is tied to a particular lifetime and cancellation domain
@@ -334,7 +332,7 @@ and operations are cancelled in bulk by cancellation of the entire cancellation 
 
 <p>
 We experimented with both approaches and reached the conclusion that 
-not performing cancellation from the task, but, pushing it to the cancellation
+not performing cancellation from the lazy, but, pushing it to the cancellation
 domain leads to more efficient implementation and is a simpler model
  for the users.
 </p>
@@ -345,17 +343,17 @@ domain leads to more efficient implementation and is a simpler model
 This is rather unorthodox decision and even authors of the paper did not completely
 agree on this topic. However, going with more restrictive model initially allows us to
 discover if the insight that lead to this decision was wrong.
-Initial design of the task, included move assignment, default constructor and swap.
+Initial design of the lazy, included move assignment, default constructor and swap.
 We removed them for two reasons.
 </p>
-<p>First, when observing how <code>task</code> was used, we noticed
+<p>First, when observing how <code>lazy</code> was used, we noticed
 that whenever,
 a variable-size container of tasks was created, we later realized that
 it was a suboptimal choice and a better solution did not require
 a container of tasks.
 </p>
-<p>Second: move-assignment of a task is a ticking bomb. To make it safe,
-  we would need to introduce per task cancellation of associated 
+<p>Second: move-assignment of a lazy is a ticking bomb. To make it safe,
+  we would need to introduce per lazy cancellation of associated 
   coroutines and it is a very heavy-weight solution.
 </p>
 <p>At the moment we do not offer a move assignment, default constructor and swap.
@@ -365,7 +363,7 @@ a container of tasks.
 
 <h2>Interaction with allocators</h2>
 
-The implementation of coroutine bindings for <code>task</code> is required
+The implementation of coroutine bindings for <code>lazy</code> is required
 to treat the case where first parameter to a coroutine is of type
 <code>allocator_arg_t</code>. If that is the case, the coroutine needs to have
 at least two arguments and the second one shall satisfy the Allocator requirements 
@@ -376,12 +374,12 @@ the coroutine state.
 Examples:
 
 <pre>
-  task&lt;int&gt; f(int, float); // uses default allocator if needed
+  lazy&lt;int&gt; f(int, float); // uses default allocator if needed
   
-  task&lt;int&gt; f(allocator_arg_t, pmr::polymorphic_allocator&lt;&gt; a); // uses a to allocate, if needed
+  lazy&lt;int&gt; f(allocator_arg_t, pmr::polymorphic_allocator&lt;&gt; a); // uses a to allocate, if needed
   
   template &lt;typename Alloc&gt;
-  task&lt;int&gt; f(allocator_arg_t, Alloc a); // uses allocator a to allocate. if needed
+  lazy&lt;int&gt; f(allocator_arg_t, Alloc a); // uses allocator a to allocate. if needed
 </pre>
 
 <h2>Interaction with executors</h2>
@@ -398,7 +396,7 @@ Examples:
 <pre>
   co_await f().via(e);
 </pre>
-<em>[Note -- Member function <code>via</code> is not part of the task at the moment. We envision this as one possible way of how to express the desire to execute continuation in a different executor. 
+<em>[Note -- Member function <code>via</code> is not part of the lazy at the moment. We envision this as one possible way of how to express the desire to execute continuation in a different executor. 
 For more details see P0975R0 that explores impact of coroutines on
 various existing proposals in flight -- endnote]</em>
 
@@ -417,7 +415,7 @@ when a coroutine has unusual requirements on where it needs to be executed it
 can be encoded directly in f without forcing the callers of f, to do extra work.
 Typically, in this manner:
 <pre>
-  task&lt;T&gt; f() {
+  lazy&lt;T&gt; f() {
     co_await make_sure_I_am_on_the_right_thread();
     ...
   }
@@ -428,7 +426,7 @@ Typically, in this manner:
 <h2>But what about main?</h2>
 <!-- ******************************************* -->
 <p>
-  As we mentioned in the beginning, the only operation that one can do on a task
+  As we mentioned in the beginning, the only operation that one can do on a lazy
   is to await on it (as if by `co_await` operator). Using an <em>await-expression</em>
   in a function turns it into a coroutine. But, this cannot go on forever,
   at some point, we have to interact with coroutine from a function that is not a 
@@ -439,23 +437,23 @@ Typically, in this manner:
   between synchronous and asynchronous world. For example:
 </p>
 <pre>
-  template &lt;typename T&gt; T sync_await(task&lt;T&gt;);
+  template &lt;typename T&gt; T sync_await(lazy&lt;T&gt;);
 </pre>
 <p>
-  This function starts the task execution in the current thread, and, 
+  This function starts the lazy execution in the current thread, and, 
   if it gets suspended, it blocks until the result is available. 
-  To simplify the signature, we show <code>sync_await</code> only taking objects of <code>task</code>
+  To simplify the signature, we show <code>sync_await</code> only taking objects of <code>lazy</code>
   type. This function can be written generically to handle arbitrary awaitables.
 </p>
 <p> Another function could be a variant of <code>std::async</code> that
-launches execution of a <code>task</code> on a thread pool and 
+launches execution of a <code>lazy</code> on a thread pool and 
 returns a <code>future</code> representing the result of the computation.
 <pre>
-  template &lt;typename T&gt; T async(task&lt;T&gt;);
+  template &lt;typename T&gt; T async(lazy&lt;T&gt;);
 </pre>
 <!---
 One would use std::async if they need to launch 
-a task, do something else meanwhile without blocking the current thread
+a lazy, do something else meanwhile without blocking the current thread
 before requesting  -->
 
 One would use this version of <code>std::async</code> 
@@ -541,55 +539,55 @@ concept Awaitable = __HasMemberOperatorCoawait&lt;A&gt;
 <li>
   If the type of an expression <em>E</em> satisfies the <code>Awaitable</code>
   concept then the term <em>simple awaitable of E</em> refers to an object
-  satisfying the <code>SimpleAwaitable</code> concept that is either the expression <em>E</em> itself
+  satisfying the <code>SimpleAwaitable</code> concept that is either the result of evaluation of expression <em>E</em> itself
   or the result of an application (if available) of <code>operator co_await</code>
   to <em>E</em>.
 </li>
 </li>
 </ol>
 
-<h3>XX.1 Coroutines tasks [coroutine.task]</h3>
-<h4>XX.1.1 Overview [coroutine.task.overview]</h4>
+<h3>XX.1 Coroutines tasks [coroutine.lazy]</h3>
+<h4>XX.1.1 Overview [coroutine.lazy.overview]</h4>
 <ol><li>
   This subclause describes components that a C++ program can use to create
   coroutines representing asynchronous computations. 
 </li></ol>
-<h4>XX.1.2 Header <code>&lt;experimental/task&gt;</task></code> synopsis [coroutine.task.syn]</h4>
+<h4>XX.1.2 Header <code>&lt;experimental/lazy&gt;</lazy></code> synopsis [coroutine.lazy.syn]</h4>
 <blockquote>
 <pre>
 namespace std::experimental {
 inline namespace coroutines_v1 {
 
-template&lt;typename T = void&gt; class task;
-template&lt;typename T&gt; class task&lt;T&amp;&gt;;
-template&lt;&gt; class task&lt;void&gt;;
+template&lt;typename T = void&gt; class lazy;
+template&lt;typename T&gt; class lazy&lt;T&amp;&gt;;
+template&lt;&gt; class lazy&lt;void&gt;;
 
 } <em>// namespace coroutines_v1</em>
 } <em>// namespace std::experimental</em>
 </pre>
 </blockquote>
 
-<h4>XX.1.3 Class template <code>task</code> [coroutine.task.type]</h4>
+<h4>XX.1.3 Class template <code>lazy</code> [coroutine.lazy.type]</h4>
 <ol>
   <pre>
   template &lt;typename T&gt;
-  class [[nodiscard]] task {
+  class [[nodiscard]] lazy {
   public:
-    task(task&amp;&amp; rhs) noexcept;
-    ~task();
+    lazy(lazy&amp;&amp; rhs) noexcept;
+    ~lazy();
     <i>unspecified</i> operator co_await() &;  <em>// exposition only</em>
     <i>unspecified</i> operator co_await() &&; <em>// exposition only</em>
   };      
 </pre>
     <li>
-    The class template <code>task</code> defines a type for a 
-    <em>coroutine task object</em> that can be associated with a
-    coroutine which return type is <code>task&lt;<em>T</em>&gt;</code>
+    The class template <code>lazy</code> defines a type for a 
+    <em>coroutine lazy object</em> that can be associated with a
+    coroutine which return type is <code>lazy&lt;<em>T</em>&gt;</code>
     for some type <em>T</em>. In this subclause, we will refer to such a coroutine as 
-    a <em>task coroutine</em> and to type <em>T</em> as the <em>eventual type</em>
+    a <em>lazy coroutine</em> and to type <em>T</em> as the <em>eventual type</em>
     of a coroutine. 
-    <!-- The implementation shall define class template <code>task</code> and provide
-    and two specializations, task&lt;T&amp;&gt; and task&lt;void&gt;. -->
+    <!-- The implementation shall define class template <code>lazy</code> and provide
+    and two specializations, lazy&lt;T&amp;&gt; and lazy&lt;void&gt;. -->
     </li>
     <br>
     <li>
@@ -598,21 +596,21 @@ template&lt;&gt; class task&lt;void&gt;;
     <p>
     <ol type="I">
       <li>
-        A call to a task coroutine <em>f</em>
-        shall return a task object <em>t</em> associated with 
+        A call to a lazy coroutine <em>f</em>
+        shall return a lazy object <em>t</em> associated with 
         that coroutine. The called coroutine shall be suspended 
         at the initial suspend point (11.4.4).
-        Such a task object is considered to be in the <em>armed</em> state.        
+        Such a lazy object is considered to be in the <em>armed</em> state.        
       </li>
       <br>
       <li>
-        The type of a task object shall satisfy the <code>Awaitable</code> concept and
-        awaiting on a task object in the armed state as 
+        The type of a lazy object shall satisfy the <code>Awaitable</code> concept and
+        awaiting on a lazy object in the armed state as 
         if by <code>co_await</code> <em>t</em> (8.3.8) shall register the
-        awaiting coroutine <em>a</em> with the task object <em>t</em> 
+        awaiting coroutine <em>a</em> with the lazy object <em>t</em> 
         and resume the coroutine <em>f</em>.
         At this point <em>t</em>
-        is considered to be in a <em>launched</em> state. Awaiting on a task object
+        is considered to be in a <em>launched</em> state. Awaiting on a lazy object
         that is not in the armed state has undefined behavior.
       </li>
       <br>
@@ -656,7 +654,7 @@ template&lt;&gt; class task&lt;void&gt;;
       <br>
       <li>
         If a <em>yield-expression</em> (8.20) occurs in the suspension context of
-        the task coroutine, the program is ill-formed.
+        the lazy coroutine, the program is ill-formed.
       </li>
     </ol>
     </p>
@@ -664,11 +662,11 @@ template&lt;&gt; class task&lt;void&gt;;
     <li>
       <p>Constructor:</p>
       <pre>
-          task(task&amp;&amp; rhs) noexcept;
+          lazy(lazy&amp;&amp; rhs) noexcept;
         </pre>
         <ol>
           <li>
-            <em>Effects:</em> Move constructs a <code>task</code> object that refers
+            <em>Effects:</em> Move constructs a <code>lazy</code> object that refers
             to the coroutine that was originally referred to by <code>rhs</code> (if any).
           </li>
           <li>
@@ -678,34 +676,34 @@ template&lt;&gt; class task&lt;void&gt;;
     </li>
     -->
   </ol>
-<h5>XX.1.3.1 constructor/destructor [coroutine.task.type.ctor.dtor]</h5>
+<h5>XX.1.3.1 constructor/destructor [coroutine.lazy.type.ctor.dtor]</h5>
 <pre>
-  task(task&amp;&amp; rhs) noexcept;
+  lazy(lazy&amp;&amp; rhs) noexcept;
 </pre>
   <ol>
   <li>
-    <em>Effects:</em> Move constructs a <code>task</code> object that refers
+    <em>Effects:</em> Move constructs a <code>lazy</code> object that refers
     to the coroutine that was originally referred to by <code>rhs</code> (if any).
   </li>
   <li>
     <em>Postcondition:</em> <code>rhs</code> shall not refer to any coroutine.
   </li>
   </ol>
-<pre>  ~task();  </pre>
+<pre>  ~lazy();  </pre>
   <ol start=3>
     <li>
-      <em>Requires:</em> The coroutine referred to by the <code>task</code> object
+      <em>Requires:</em> The coroutine referred to by the <code>lazy</code> object
       (if any) must be suspended.
     </li>
     <!--
     <li>
-      <em>Effects:</em> Move constructs a <code>task</code> object that refers
+      <em>Effects:</em> Move constructs a <code>lazy</code> object that refers
       to the coroutine that was originally referred to by <code>rhs</code> (if any).
     </li>
     -->
     <li>
       <em>Effects:</em> The coroutine (if any) referred to 
-      by the task object is destroyed.
+      by the lazy object is destroyed.
       <!--
       <em>[Note: </em> A resumption of a destroyed coroutine
        results in undefined behavior <em>-- end note]</em>-->
