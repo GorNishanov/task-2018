@@ -37,7 +37,7 @@ border-collapse: collapse;
 </tr>
 <tr>
 <td align="left">Date:</td>
-<td align="left">2018-05-05
+<td align="left">2018-10-07
 </td>
 </tr>
 <!--
@@ -52,7 +52,7 @@ border-collapse: collapse;
 -->
 <tr>
 <td align="left">Audience:</td>
-<td align="left">SG1</td>
+<td align="left">LWG</td>
 </tr>
 <tr>
 <td align="left">Reply to:</td>
@@ -339,7 +339,7 @@ domain leads to more efficient implementation and is a simpler model
  for the users.
 </p>
 
-<h2>Why can't I put a task into a container</h2>
+<h2>Why no move assignment?</h2>
 
 <p>
 This is rather unorthodox decision and even authors of the paper did not completely
@@ -512,22 +512,28 @@ the requirements on a type that is usable in an <em>await-expression</em> (8.3.8
 <blockquote>
 <pre>
 template &lt;typename T&gt;
-bool concept __HasMemberOperatorCoawait = <em>// exposition only </em>
-  requires(T a) { requires SimpleAwaitable<decltype(a.operator co_await())>; };          
+concept __HasMemberOperatorCoawait = <em>// exposition only </em>
+  requires(T a) {
+    { a.operator co_await() } -> SimpleAwaitable; 
+    { std::move(a).operator co_await() } -> SimpleAwaitable; 
+  };
 
 template &lt;typename T&gt;
-bool concept __HasNonMemberOperatorCoawait = <em>// exposition only </em>
-  requires(T a) { requires SimpleAwaitable<decltype(operator co_await(a))>; };          
+concept __HasNonMemberOperatorCoawait = <em>// exposition only </em>
+  requires(T a) {
+    { operator co_await(a) } -> SimpleAwaitable; 
+    { operator co_await(std::move(a)) } -> SimpleAwaitable; 
+  };
 
 template &lt;typename A&gt;
-bool concept SimpleAwaitable = requires(A a, coroutine_handle&lt;&gt; h) {
+concept SimpleAwaitable = requires(A a, coroutine_handle&lt;&gt; h) {
   { a.await_ready() } -&gt; bool;
   a.await_resume();
   a.await_suspend(h);
 };          
       
 template &lt;typename A&gt;
-bool concept Awaitable = __HasMemberOperatorCoawait&lt;A&gt;
+concept Awaitable = __HasMemberOperatorCoawait&lt;A&gt;
   || __HasNonMemberOperatorCoawait&lt;A&gt; || SimpleAwaitable&lt;A&gt;;
 </pre>  
 </blockquote>
@@ -535,9 +541,9 @@ bool concept Awaitable = __HasMemberOperatorCoawait&lt;A&gt;
 <li>
   If the type of an expression <em>E</em> satisfies the <code>Awaitable</code>
   concept then the term <em>simple awaitable of E</em> refers to an object
-  satisfying <code>SimpleAwaitable</code> concept that is either the result 
-  of <em>E</em> or the result of an application of <code>operator co_await</code>
-  to the result of <em>E</em>.
+  satisfying <code>SimpleAwaitable</code> concept that is either the expression <em>E</em> itself
+  or the result of an application of <code>operator co_await</code>
+  to the result of <em>E</em> (if exists).
 </li>
 </li>
 </ol>
@@ -548,7 +554,7 @@ bool concept Awaitable = __HasMemberOperatorCoawait&lt;A&gt;
   This subclause describes components that a C++ program can use to create
   coroutines representing asynchronous computations. 
 </li></ol>
-<h4>XX.1.2 Header <code>task</code> synopsis [coroutine.task.syn]</h4>
+<h4>XX.1.2 Header <code>&lt;experimental/task&gt;</task></code> synopsis [coroutine.task.syn]</h4>
 <blockquote>
 <pre>
 namespace std::experimental {
